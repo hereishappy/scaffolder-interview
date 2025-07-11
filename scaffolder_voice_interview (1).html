@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Scaffolder Interview Form</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; }
+    .question { margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    button { padding: 10px 15px; margin-top: 10px; border: none; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; }
+    audio, video { display: block; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Scaffolder Interview (Hindi Audio + Photo)</h1>
+  <form id="interviewForm">
+    <div id="questions"></div>
+    <div class="question">
+      <p><strong>अपनी लाइव फोटो दें:</strong></p>
+      <video id="webcam" autoplay width="320" height="240"></video>
+      <button type="button" onclick="capturePhoto()">📸 कैप्चर करें</button>
+      <canvas id="photoCanvas" width="320" height="240" style="display:none;"></canvas>
+      <input type="hidden" name="photo" id="photoInput">
+    </div>
+    <button type="submit">Submit Answers</button>
+  </form>
+
+  <script>
+    const questions = [
+      "आपका नाम क्या है?",
+      "आपको स्कैफोल्डिंग का कितना अनुभव है?",
+      "आपने पहले कौन से प्रोजेक्ट्स में काम किया है?",
+      "Cuplok स्कैफोल्डिंग सिस्टम में कौन-कौन से मेन पार्ट्स होते हैं?",
+      "आप हमारे साथ काम क्यों करना चाहते हैं?"
+    ];
+
+    const container = document.getElementById('questions');
+
+    questions.forEach((q, index) => {
+      const div = document.createElement('div');
+      div.className = 'question';
+      div.innerHTML = `
+        <p><strong>Q${index + 1}:</strong> ${q}</p>
+        <button type="button" onclick="startRecording(${index})">🎙️ रिकॉर्ड करें</button>
+        <button type="button" onclick="stopRecording(${index})">⏹️ बंद करें</button>
+        <audio id="audio${index}" controls></audio>
+        <input type="hidden" name="answer${index}" id="answer${index}">
+      `;
+      container.appendChild(div);
+    });
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function startRecording(index) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.start();
+          audioChunks = [];
+
+          mediaRecorder.addEventListener("dataavailable", event => {
+            audioChunks.push(event.data);
+          });
+
+          mediaRecorder.addEventListener("stop", () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            document.getElementById(`audio${index}`).src = audioUrl;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+              document.getElementById(`answer${index}`).value = reader.result;
+            };
+          });
+        });
+    }
+
+    function stopRecording(index) {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('webcam');
+      const canvas = document.getElementById('photoCanvas');
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/png');
+      document.getElementById('photoInput').value = dataUrl;
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        document.getElementById('webcam').srcObject = stream;
+      })
+      .catch(error => console.error('Webcam error:', error));
+
+    document.getElementById("interviewForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const formData = new FormData(document.getElementById("interviewForm"));
+
+      fetch("https://script.google.com/macros/s/AKfycbxOczousDL5Sc4Wfr-25P6T0bO-FQiAaEceEe0zaU6FCyhoNHMPIDRLUOPJPRS239_5/exec", {
+        method: "POST",
+        body: formData
+      }).then(res => alert("जवाब और फोटो सबमिट हो गया! धन्यवाद!"))
+        .catch(err => alert("Error: " + err));
+    });
+  </script>
+</body>
+</html>
